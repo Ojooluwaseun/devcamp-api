@@ -33,6 +33,12 @@ const UserSchema = new mongoose.Schema({
   },
   resetPasswordToken: String,
   resetPasswordExpire: Date,
+  verifyAccountToken: String,
+  verifyAccountExpire: Date,
+  isVerified: {
+    type: Boolean,
+    default:false
+  },
   createdAt: {
     type: Date,
     default: Date.now()
@@ -70,6 +76,18 @@ UserSchema.methods.getResetPasswordToken = function() {
   this.resetPasswordExpire = Date.now() + 600000
 
   return resetToken
+}
+
+//Generate and hash verify account token
+UserSchema.methods.getVerifyAccountToken = function() {
+  //Generate token
+  const verifyToken = crypto.randomBytes(20).toString('hex')
+
+  //Hash token and set to verifyAccountToken field
+  this.verifyAccountToken = crypto.createHash('sha256').update(verifyToken).digest('hex')
+  this.verifyAccountExpire = Date.now() + 600000
+
+  return verifyToken
 }
 
 module.exports = mongoose.model("User", UserSchema);

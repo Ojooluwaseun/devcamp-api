@@ -24,7 +24,7 @@ router.get("/", advancedResults(Bootcamp,
     } catch (err) {
       next(err);
     }
-  }
+  } 
 );
 
 //Get a single bootcamp

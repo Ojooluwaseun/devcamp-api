@@ -68,4 +68,48 @@ router.post("/:bootcampId", protect, authorize("user", "admin"), async (req, res
    
 });
 
+//Update review
+router.put("/:id", protect, authorize("user", "admin"), async (req, res, next) => {
+    try {
+      let review = await Review.findById(req.params.id);
+      if (!review) {
+        return next(new ErrorResponse(`Oops! No review with id ${req.params.id} found`, 404));
+      }
+      //Make sure the user is the owner of the review
+      if (review.user.toString() !== req.user.id && req.user.role !== "admin") {
+        return next(new ErrorResponse("You are not authorized to update this review", 401));
+      }
+
+      review = await Review.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+        runValidators: true
+      })
+
+      res.status(200).json({ success: true, data: review });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+//Delete review
+router.delete("/:id", protect, authorize("user", "admin"), async (req, res, next) => {
+  try {
+    const review = await Review.findById(req.params.id)
+    if (!review) {
+      return next(new ErrorResponse(`Oops! No review with id ${req.params.id} found`, 404))
+    }
+    //Make sure the user is the owner of the review
+    if (review.user.toString() !== req.user.id && req.user.role !== "admin") {
+      return next(new ErrorResponse("You are not authorized to delete this review", 401));
+    }
+
+    await review.remove();
+    res.status(200).json({ success: true, data: {} });
+  } catch (err) {
+    next(err)
+  }
+   
+});
+
 module.exports = router;

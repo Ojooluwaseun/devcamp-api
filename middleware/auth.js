@@ -10,9 +10,9 @@ exports.protect = async (req, res, next) => {
     if (tk && tk.startsWith("Bearer")) {
       token = tk.split(" ")[1];
     }
-    // else if (req.cookies.token) {
-    //   token = req.cookies.token;
-    // }
+    else if (req.cookies.token) {
+      token = req.cookies.token;
+    }
     if (!token) {
       return next(
         new ErrorResponse("Not Authorized to access this route", 401)

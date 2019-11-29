@@ -11,12 +11,73 @@ router.post("/register", async (req, res, next) => {
   try {
     const { name, email, password, role } = req.body;
     const user = await User.create({ name, email, password, role });
+    //Get verify token
+    const verifyToken = user.getVerifyAccountToken()
+    await user.save({validateBeforeSave:false})
+    //Create reset Url
+    const verifyUrl = `${req.protocol}://${req.get('host')}/api/v1/auth/verifyaccount/${verifyToken}`
 
-    sendTokenResponse(user, 200, res);
+    const message = `You are receiving this email because you have just created account on Devcamp and your account needs to be verified.
+                       If you did not make this request, please disregard this email.\n\n
+                       Please make a put request to: ${verifyUrl} to verify your account`
+        try {
+            await sendEmail({
+
+              email:user.email,
+              subject: 'Account Verification',
+              message
+            })
+            res.status(200).json({ success: true, token: verifyToken, data: 'Please check you email for account verification link' })
+        } catch (err) {
+            user.verifyAccountToken = undefined
+            user.verifyAccountExpire = undefined
+            await user.save({validateBeforeSave:false})
+            
+            next(ErrorResponse("Error sending email", 500))
+        }
+
   } catch (err) {
     next(err);
   }
 });
+
+//Verify Account
+router.put('/verifyaccount/:verifyToken', async (req, res, next) => {
+    try {
+        const verifyToken = req.params.verifyToken
+        const verifyAccountToken = crypto.createHash('sha256').update(verifyToken).digest('hex')
+
+        const user = await User.findOne({
+            verifyAccountToken, verifyAccountExpire: {$gt: Date.now()}
+        })
+        if(!user) {
+            next(new ErrorResponse("Invalid Token", 404))
+        }else {
+            //verify
+            user.isVerified = true
+            user.verifyAccountToken = undefined
+            user.verifyAccountExpire = undefined
+            await user.save({validateBeforeSave:false})
+            sendTokenResponse(user, 200, res);
+
+            const resetUrl = `${req.protocol}://${req.get('host')}/api/v1/auth/login`
+
+            const message = `You are receiving this email because your account has been verified successfully.\n\n 
+                            If you did not make this request, please disregard this email.\n\n
+                            You can login at : ${resetUrl}`
+            
+            await sendEmail({
+                email:user.email,
+                subject: 'Account Verification successful',
+                message
+            })
+        }
+    
+    }    
+     catch (err) {
+        next(err)
+    }
+  })
 
 //Login user
 router.post("/login", async (req, res, next) => {
@@ -36,11 +97,25 @@ router.post("/login", async (req, res, next) => {
     if (!isMatch) {
       return next(new ErrorResponse("Invalid Credentials", 401));
     }
+    //Check if account is verified
+    if(!user.isVerified) {
+        return next(new ErrorResponse("Account not verified.Please check your email to verify your account", 401));
+    }
     sendTokenResponse(user, 200, res);
   } catch (err) {
     next(err);
   }
 });
+
+//Logout User
+router.get('/logout', async (req, res, next) => {
+    try {
+        res.cookie('token', 'none', {expires: new Date(Date.now() + 10000)})
+        res.status(200).json({ success: true, data: {} });
+    } catch (err) {
+        next(err)
+    }
+})
 
 
 //Get User profile

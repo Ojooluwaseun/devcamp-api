@@ -68,7 +68,7 @@ typings/
 .yarn-integrity
 
 # dotenv environment variables filegi
-*.env
+config.env
 .env.test
 
 

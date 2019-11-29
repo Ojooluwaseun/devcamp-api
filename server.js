@@ -7,6 +7,12 @@ const path = require("path");
 const errorHandler = require("./middleware/error");
 const fileupload = require("express-fileupload");
 const cookieParser = require("cookie-parser");
+const mongoSanitize = require("express-mongo-sanitize")
+const helmet = require("helmet")
+const xss = require("xss-clean")
+const rateLimit = require('express-rate-limit')
+const hpp = require("hpp")
+const cors = require("cors")
 
 //load env variables
 dotenv.config({ path: "./config/config.env" });
@@ -22,7 +28,7 @@ const reviews = require("./routes/reviews");
 
 const app = express();
 //Body Parser
-app.use(express.json());
+app.use(express.json({ limit: '10kb' })); //Body limit is 10
 
 //Cookie Parser
 app.use(cookieParser());
@@ -34,6 +40,28 @@ if (process.env.NODE_ENV === "development") {
 
 //File uploading
 app.use(fileupload());
+
+//Sanitize data to prevent noSQL Injection Attack
+app.use(mongoSanitize())
+
+//Set security headers to prevent XSS Attack
+app.use(helmet())
+
+//Sanitize date to prevent XSS Attack
+app.use(xss())
+
+// Rate Limiting (max of 100 request per 10min) to prevent DoS attack
+const limiter = rateLimit({
+  max: 100, 
+  windowMs: 10 * 60 * 1000,
+});
+app.use(limiter)
+
+//Prevent http param polution
+app.use(hpp())
+
+//Allow CORS
+app.use(cors())
 
 //set static folder
 app.use(express.static(path.join(__dirname, "public")));
